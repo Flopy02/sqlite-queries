@@ -1,79 +1,132 @@
-const express = require("express")
-const carsRouter = express.Router()
-const db = require("../database")
+const express = require("express");
+const carsRouter = express.Router();
+const db = require("../database");
 
+// Test route
 carsRouter.get("/test", (req, res) => {
 	res.json({
 		msg: "cars route test ok !!",
-	})
-})
+	});
+});
 
-// GET return a list of all cars
+// GET: Récupérer la liste de toutes les voitures
 carsRouter.get("/", (req, res) => {
 	db.all("SELECT * FROM cars", [], (err, rows) => {
 		if (err) {
-			res.status(500).json({ error: err.message })
+			res.status(500).json({ error: err.message });
 		} else {
-			res.json(rows)
+			res.json(rows);
 		}
-	})
-})
+	});
+});
 
-// POST add a new car
+// POST: Ajouter une nouvelle voiture
 carsRouter.post("/", (req, res) => {
-	const { carName, carYear, carImage } = req.body
+	const { carName, carYear, carImage } = req.body;
 
+	// Validation simple des données
+	if (!carName || typeof carName !== "string" || /[^a-zA-Z0-9 ]/.test(carName)) {
+		return res.status(400).json({ msg: "Invalid car name" });
+	}
+
+	if (!carYear || isNaN(carYear) || carYear.toString().length !== 4) {
+		return res.status(400).json({ msg: "Invalid car year" });
+	}
+
+	if (!carImage || typeof carImage !== "string") {
+		return res.status(400).json({ msg: "Invalid car image URL" });
+	}
+
+	// Insertion dans la base de données
 	db.run(
 		"INSERT INTO cars (carName, carYear, carImage) VALUES (?, ?, ?)",
 		[carName, carYear, carImage],
 		function (err) {
 			if (err) {
-				res.status(500).json({ error: err.message })
+				res.status(500).json({ error: err.message });
 			} else {
-				res.json({ id: this.lastID })
+				res.json({ id: this.lastID });
 			}
 		}
-	)
-})
+	);
+});
 
-// PUT update a car based on the param id
+// PUT: Mettre à jour une voiture par ID
 carsRouter.put("/:id", (req, res) => {
-	const { id } = req.params
-	console.log(id)
+	const { id } = req.params;
+	const { carName, carYear, carImage } = req.body;
 
+	// Validation des données
+	if (!carName || typeof carName !== "string" || /[^a-zA-Z0-9 ]/.test(carName)) {
+		return res.status(400).json({ msg: "Invalid car name" });
+	}
+
+	if (!carYear || isNaN(carYear) || carYear.toString().length !== 4) {
+		return res.status(400).json({ msg: "Invalid car year" });
+	}
+
+	if (!carImage || typeof carImage !== "string") {
+		return res.status(400).json({ msg: "Invalid car image URL" });
+	}
+
+	// Mise à jour dans la base de données
 	db.run(
 		"UPDATE cars SET carName = ?, carYear = ?, carImage = ? WHERE id = ?",
 		[carName, carYear, carImage, id],
 		function (err) {
 			if (err) {
-				res.status(500).json({ error: err.message })
+				res.status(500).json({ error: err.message });
+			} else if (this.changes === 0) {
+				// Si aucune voiture n'a été mise à jour
+				res.status(404).json({ msg: "Car not found" });
 			} else {
-				res.json({ changes: this.changes })
+				// Mise à jour réussie
+				res.json({ changes: this.changes });
 			}
 		}
-	)
-})
+	);
+});
 
-// DELETE delete a car based on the param id
+// DELETE: Supprimer une voiture par ID
 carsRouter.delete("/:id", (req, res) => {
-	res.json({
-		msg: "update a car based on its id ... ",
-	})
-})
+	const { id } = req.params;
 
-// GET one car based on its id
-carsRouter.get("/:id", (req, res) => {
-	const { id } = req.body
+	// Vérifier si la voiture existe avant suppression
 	db.get("SELECT * FROM cars WHERE id = ?", [id], (err, row) => {
 		if (err) {
-			res.status(500).json({ error: err.message })
+			res.status(500).json({ error: err.message });
+		} else if (!row) {
+			// Voiture non trouvée
+			res.status(404).json({ msg: "Car not found" });
 		} else {
-			// if now car found with that id
-			if (!row) return res.status(404).json({ msg: "car not found" })
-			// car found ✅
-			res.json(row)
+			// Suppression de la voiture
+			db.run("DELETE FROM cars WHERE id = ?", [id], function (err) {
+				if (err) {
+					res.status(500).json({ error: err.message });
+				} else {
+					res.json({ changes: this.changes });
+				}
+			});
 		}
-	})
-})
+	});
+});
 
-module.exports = carsRouter
+// GET: Récupérer une seule voiture par ID
+carsRouter.get("/:id", (req, res) => {
+	const { id } = req.params;
+
+	// Requête pour obtenir une voiture par son ID
+	db.get("SELECT * FROM cars WHERE id = ?", [id], (err, row) => {
+		if (err) {
+			res.status(500).json({ error: err.message });
+		} else if (!row) {
+			// Voiture non trouvée
+			res.status(404).json({ msg: "Car not found" });
+		} else {
+			// Voiture trouvée, renvoyer l'objet
+			res.json(row);
+		}
+	});
+});
+
+module.exports = carsRouter;
