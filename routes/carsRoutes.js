@@ -112,7 +112,7 @@ carsRouter.delete("/:id", (req, res) => {
 });
 
 // GET: Récupérer une seule voiture par ID
-carsRouter.get("/:id", (req, res) => {
+carsRouter.get("/:id", (req, res ) => {
 	const { id } = req.params;
 
 	// Requête pour obtenir une voiture par son ID
